@@ -1,0 +1,5 @@
+extends: relaxed
+rules:
+  # Pinning actions to a full commit SHA (+ version comment) exceeds 80 cols.
+  line-length:
+    max: 140
