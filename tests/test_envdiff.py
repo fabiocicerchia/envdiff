@@ -73,3 +73,23 @@ def test_cli_fail_on_diff(tmp_path, capsys):
     right.write_text("X=2\n")
     assert main([str(left), str(right), "--fail-on-diff"]) == 1
     assert "~ X: 1 -> 2" in capsys.readouterr().out
+
+
+def test_cli_json_format(tmp_path, capsys):
+    left, right = tmp_path / "a.env", tmp_path / "b.env"
+    left.write_text("X=1\n")
+    right.write_text("X=2\nY=3\n")
+    main([str(left), str(right), "--format", "json"])
+    out = json.loads(capsys.readouterr().out)
+    assert out["changed"] == {"X": {"old": "1", "new": "2"}}
+    assert out["added"] == {"Y": "3"}
+    assert out["summary"]["total"] == 2
+
+
+def test_cli_markdown_format(tmp_path, capsys):
+    left, right = tmp_path / "a.env", tmp_path / "b.env"
+    left.write_text("X=1\n")
+    right.write_text("X=2\n")
+    main([str(left), str(right), "--format", "markdown"])
+    out = capsys.readouterr().out
+    assert "| ~ | `X` | `1` → `2` |" in out

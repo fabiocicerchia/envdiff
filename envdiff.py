@@ -178,6 +178,68 @@ def diff(a, b, ignore=()):
     return added, removed, changed
 
 
+def render_text(added, removed, changed, left, right, show):
+    """Render the diff as the classic +/-/~ line format."""
+    lines = [f"+ {k}={show(k, added[k])}" for k in sorted(added)]
+    lines += [f"- {k}={show(k, removed[k])}" for k in sorted(removed)]
+    lines += [
+        f"~ {k}: {show(k, changed[k][0])} -> {show(k, changed[k][1])}"
+        for k in sorted(changed)
+    ]
+    total = len(added) + len(removed) + len(changed)
+    lines.append("")
+    lines.append(
+        f"{total} difference(s): {len(added)} added, {len(removed)} removed, "
+        f"{len(changed)} changed ({len(left)} vs {len(right)} vars)"
+    )
+    return "\n".join(lines)
+
+
+def render_markdown(added, removed, changed, left, right, show):
+    """Render the diff as a markdown table, safe to paste into a PR/ticket."""
+    lines = ["| | Key | Value |", "|---|---|---|"]
+    lines += [f"| + | `{k}` | `{show(k, added[k])}` |" for k in sorted(added)]
+    lines += [f"| - | `{k}` | `{show(k, removed[k])}` |" for k in sorted(removed)]
+    lines += [
+        f"| ~ | `{k}` | `{show(k, changed[k][0])}` → `{show(k, changed[k][1])}` |"
+        for k in sorted(changed)
+    ]
+    total = len(added) + len(removed) + len(changed)
+    lines.append("")
+    lines.append(
+        f"**{total} difference(s)**: {len(added)} added, {len(removed)} removed, "
+        f"{len(changed)} changed ({len(left)} vs {len(right)} vars)"
+    )
+    return "\n".join(lines)
+
+
+def render_json(added, removed, changed, left, right, show):
+    """Render the diff as a JSON object, for scripting."""
+    return json.dumps(
+        {
+            "added": {k: show(k, v) for k, v in added.items()},
+            "removed": {k: show(k, v) for k, v in removed.items()},
+            "changed": {
+                k: {"old": show(k, old), "new": show(k, new)}
+                for k, (old, new) in changed.items()
+            },
+            "summary": {
+                "total": len(added) + len(removed) + len(changed),
+                "added": len(added),
+                "removed": len(removed),
+                "changed": len(changed),
+                "left_vars": len(left),
+                "right_vars": len(right),
+            },
+        },
+        indent=2,
+        sort_keys=True,
+    )
+
+
+RENDERERS = {"text": render_text, "json": render_json, "markdown": render_markdown}
+
+
 def main(argv=None):
     """CLI entry point: parse args, diff the two environments, print results."""
     p = argparse.ArgumentParser(
@@ -200,6 +262,12 @@ def main(argv=None):
     p.add_argument(
         "--fail-on-diff", action="store_true", help="exit 1 when environments differ"
     )
+    p.add_argument(
+        "--format",
+        choices=sorted(RENDERERS),
+        default="text",
+        help="output format (default: text)",
+    )
     args = p.parse_args(argv)
 
     left, right = load(args.left), load(args.right)
@@ -208,19 +276,9 @@ def main(argv=None):
     def show(k, v):
         return mask(k, v, args.no_mask)
 
-    for k in sorted(added):
-        print(f"+ {k}={show(k, added[k])}")
-    for k in sorted(removed):
-        print(f"- {k}={show(k, removed[k])}")
-    for k in sorted(changed):
-        old, new = changed[k]
-        print(f"~ {k}: {show(k, old)} -> {show(k, new)}")
+    print(RENDERERS[args.format](added, removed, changed, left, right, show))
 
     total = len(added) + len(removed) + len(changed)
-    print(
-        f"\n{total} difference(s): {len(added)} added, {len(removed)} removed, "
-        f"{len(changed)} changed ({len(left)} vs {len(right)} vars)"
-    )
     return 1 if (total and args.fail_on_diff) else 0
 
 

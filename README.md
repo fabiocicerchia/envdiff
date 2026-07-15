@@ -57,7 +57,7 @@ envdiff a.env b.env --no-mask             # only when you really mean it
 ## Roadmap
 
 - [x] `docker:container` source, AWS SSM / Secrets Manager sources
-- [ ] JSON/markdown output
+- [x] JSON/markdown output
 - [x] Value-shape hints for masked diffs (length, charset)
 
 ## Development
