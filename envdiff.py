@@ -6,6 +6,9 @@ Sources (auto-detected per argument):
   -                       stdin
   cmd:'ssh prod env'      output of a command
   k8s:ns/pod[/container]  env of a running pod (kubectl exec ... env)
+  docker:container        env of a running container (docker exec ... env)
+  ssm:/path/prefix        AWS SSM parameters under a path (aws ssm cli)
+  secrets:name            AWS Secrets Manager secret (aws secretsmanager cli)
 
 Secret-looking values (KEY matching token/secret/password/key/etc., or any
 value that looks high-entropy) are masked by default: only a stable 6-char
@@ -15,6 +18,7 @@ without ever printing it.
 
 import argparse
 import hashlib
+import json
 import math
 import re
 import shlex
@@ -92,6 +96,56 @@ def load(source):
             cmd, check=True, capture_output=True, text=True
         )  # nosec B603
         return parse_env_text(out.stdout)
+    if source.startswith("docker:"):
+        out = subprocess.run(
+            ["docker", "exec", source[7:], "env"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )  # nosec B603
+        return parse_env_text(out.stdout)
+    if source.startswith("ssm:"):
+        # aws ssm parameters-by-path, decrypted; last path segment is the key
+        out = subprocess.run(
+            [
+                "aws",
+                "ssm",
+                "get-parameters-by-path",
+                "--path",
+                source[4:],
+                "--recursive",
+                "--with-decryption",
+                "--output",
+                "json",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )  # nosec B603
+        params = json.loads(out.stdout).get("Parameters", [])
+        return {p["Name"].rsplit("/", 1)[-1]: p["Value"] for p in params}
+    if source.startswith("secrets:"):
+        name = source[8:]
+        out = subprocess.run(
+            [
+                "aws",
+                "secretsmanager",
+                "get-secret-value",
+                "--secret-id",
+                name,
+                "--output",
+                "json",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )  # nosec B603
+        secret_string = json.loads(out.stdout).get("SecretString", "")
+        try:
+            # structured secret: {"KEY": "value", ...}
+            return {k: str(v) for k, v in json.loads(secret_string).items()}
+        except (ValueError, AttributeError):
+            return {name: secret_string}
     with open(source) as fh:
         return parse_env_text(fh.read())
 

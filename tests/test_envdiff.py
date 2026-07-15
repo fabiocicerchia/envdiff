@@ -1,4 +1,7 @@
-from envdiff import diff, looks_secret, main, mask, parse_env_text
+import json
+from unittest.mock import patch
+
+from envdiff import diff, load, looks_secret, main, mask, parse_env_text
 
 
 def test_parse_handles_dotenv_quirks():
@@ -23,6 +26,40 @@ def test_diff_and_ignore():
     b = {"A": "1", "B": "3", "C": "4", "HOSTNAME": "y"}
     added, removed, changed = diff(a, b, ignore=["HOSTNAME"])
     assert added == {"C": "4"} and removed == {} and changed == {"B": ("2", "3")}
+
+
+def test_load_docker_source():
+    with patch("envdiff.subprocess.run") as run:
+        run.return_value.stdout = "FOO=bar\n"
+        env = load("docker:my-container")
+        assert env == {"FOO": "bar"}
+        assert run.call_args.args[0] == ["docker", "exec", "my-container", "env"]
+
+
+def test_load_ssm_source():
+    payload = json.dumps(
+        {"Parameters": [{"Name": "/app/FOO", "Value": "bar"}]}
+    )
+    with patch("envdiff.subprocess.run") as run:
+        run.return_value.stdout = payload
+        env = load("ssm:/app")
+        assert env == {"FOO": "bar"}
+
+
+def test_load_secrets_source_structured():
+    payload = json.dumps({"SecretString": json.dumps({"FOO": "bar"})})
+    with patch("envdiff.subprocess.run") as run:
+        run.return_value.stdout = payload
+        env = load("secrets:my-secret")
+        assert env == {"FOO": "bar"}
+
+
+def test_load_secrets_source_plain_string():
+    payload = json.dumps({"SecretString": "raw-value"})
+    with patch("envdiff.subprocess.run") as run:
+        run.return_value.stdout = payload
+        env = load("secrets:my-secret")
+        assert env == {"my-secret": "raw-value"}
 
 
 def test_cli_fail_on_diff(tmp_path, capsys):

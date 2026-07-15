@@ -33,6 +33,9 @@ two environments share the same secret, without revealing it.
 | `-` | stdin |
 | `cmd:'ssh prod env'` | output of any command |
 | `k8s:ns/pod[/container]` | live pod env via `kubectl exec` |
+| `docker:container` | live container env via `docker exec` |
+| `ssm:/path/prefix` | AWS SSM parameters under a path (`aws ssm` CLI) |
+| `secrets:name` | AWS Secrets Manager secret (`aws secretsmanager` CLI) |
 
 ## Install & use
 
@@ -52,7 +55,7 @@ envdiff a.env b.env --no-mask             # only when you really mean it
 
 ## Roadmap
 
-- [ ] `docker:container` source, AWS SSM / Secrets Manager sources
+- [x] `docker:container` source, AWS SSM / Secrets Manager sources
 - [ ] JSON/markdown output
 - [ ] Value-shape hints for masked diffs (length, charset)
 
