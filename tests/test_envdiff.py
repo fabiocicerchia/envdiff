@@ -28,6 +28,11 @@ def test_diff_and_ignore():
     assert added == {"C": "4"} and removed == {} and changed == {"B": ("2", "3")}
 
 
+def test_mask_shows_length_and_charset_shape_hint():
+    masked = mask("API_TOKEN", "sk9fXk2LmQ8vZt4Rw7Yb1NcE3H")
+    assert "len=26" in masked and "charset=alnum" in masked
+
+
 def test_load_docker_source():
     with patch("envdiff.subprocess.run") as run:
         run.return_value.stdout = "FOO=bar\n"

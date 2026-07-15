@@ -52,11 +52,24 @@ def fingerprint(value):
     return hashlib.sha256(value.encode()).hexdigest()[:6]
 
 
+def charset_class(value):
+    """Classify a string's charset as a shape hint, without revealing it."""
+    if value.isdigit():
+        return "numeric"
+    if re.fullmatch(r"[0-9a-fA-F]+", value):
+        return "hex"
+    if value.isalnum():
+        return "alnum"
+    if re.fullmatch(r"[A-Za-z0-9+/]+=*", value):
+        return "base64"
+    return "mixed"
+
+
 def mask(key, value, no_mask=False):
-    """Replace secret-looking values with a fingerprint unless no_mask."""
+    """Replace secret-looking values with a fingerprint + shape hint unless no_mask."""
     if no_mask or not looks_secret(key, value):
         return value
-    return f"<masked:{fingerprint(value)}>"
+    return f"<masked:{fingerprint(value)} len={len(value)} charset={charset_class(value)}>"
 
 
 def parse_env_text(text):

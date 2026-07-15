@@ -15,15 +15,16 @@ prod?" — answered in one command, safe to paste into a ticket.
 $ envdiff k8s:staging/api-7d9f k8s:prod/api-5c2a --ignore 'HOSTNAME|POD_.*'
 + FEATURE_RETRY=true
 - LEGACY_MODE=1
-~ DB_PASSWORD: <masked:9f2c1a> -> <masked:4b8e77>
+~ DB_PASSWORD: <masked:9f2c1a len=12 charset=alnum> -> <masked:4b8e77 len=14 charset=alnum>
 ~ LOG_LEVEL: debug -> info
 
 4 difference(s): 1 added, 1 removed, 2 changed (41 vs 41 vars)
 ```
 
 Secrets are never printed: values with secret-looking keys *or* high-entropy
-values are replaced by a stable 6-char fingerprint — enough to see *whether*
-two environments share the same secret, without revealing it.
+values are replaced by a stable 6-char fingerprint plus a length/charset shape
+hint — enough to see *whether* two environments share the same secret, or spot
+a shape change (e.g. a shorter key after rotation), without revealing it.
 
 ## Sources
 
@@ -57,7 +58,7 @@ envdiff a.env b.env --no-mask             # only when you really mean it
 
 - [x] `docker:container` source, AWS SSM / Secrets Manager sources
 - [ ] JSON/markdown output
-- [ ] Value-shape hints for masked diffs (length, charset)
+- [x] Value-shape hints for masked diffs (length, charset)
 
 ## Development
 
