@@ -37,6 +37,12 @@ two environments share the same secret, without revealing it.
 ## Install & use
 
 ```sh
+curl -fsSL https://raw.githubusercontent.com/fabiocicerchia/envdiff/main/install.sh | bash
+```
+
+Or with pipx from a checkout:
+
+```sh
 pipx install .
 envdiff .env.staging .env.prod
 envdiff cmd:'heroku run env -a app-stg' cmd:'heroku run env -a app-prd'
