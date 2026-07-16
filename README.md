@@ -54,12 +54,6 @@ envdiff a.env b.env --fail-on-diff        # CI drift gate (exit 1 on diff)
 envdiff a.env b.env --no-mask             # only when you really mean it
 ```
 
-## Roadmap
-
-- [x] `docker:container` source, AWS SSM / Secrets Manager sources
-- [x] JSON/markdown output
-- [x] Value-shape hints for masked diffs (length, charset)
-
 ## Development
 
 `make dev` then `make test` / `make lint`. Deeper docs live in [`docs/`](docs/),
