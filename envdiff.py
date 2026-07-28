@@ -180,6 +180,10 @@ def diff(a, b, ignore=()):
     return added, removed, changed
 
 
+def _total(added, removed, changed):
+    return len(added) + len(removed) + len(changed)
+
+
 def render_text(added, removed, changed, left, right, show):
     """Render the diff as the classic +/-/~ line format."""
     lines = [f"+ {k}={show(k, added[k])}" for k in sorted(added)]
@@ -188,7 +192,7 @@ def render_text(added, removed, changed, left, right, show):
         f"~ {k}: {show(k, changed[k][0])} -> {show(k, changed[k][1])}"
         for k in sorted(changed)
     ]
-    total = len(added) + len(removed) + len(changed)
+    total = _total(added, removed, changed)
     lines.append("")
     lines.append(
         f"{total} difference(s): {len(added)} added, {len(removed)} removed, "
@@ -206,7 +210,7 @@ def render_markdown(added, removed, changed, left, right, show):
         f"| ~ | `{k}` | `{show(k, changed[k][0])}` → `{show(k, changed[k][1])}` |"
         for k in sorted(changed)
     ]
-    total = len(added) + len(removed) + len(changed)
+    total = _total(added, removed, changed)
     lines.append("")
     lines.append(
         f"**{total} difference(s)**: {len(added)} added, {len(removed)} removed, "
@@ -226,7 +230,7 @@ def render_json(added, removed, changed, left, right, show):
                 for k, (old, new) in changed.items()
             },
             "summary": {
-                "total": len(added) + len(removed) + len(changed),
+                "total": _total(added, removed, changed),
                 "added": len(added),
                 "removed": len(removed),
                 "changed": len(changed),
@@ -280,7 +284,7 @@ def main(argv=None):
 
     print(RENDERERS[args.format](added, removed, changed, left, right, show))
 
-    total = len(added) + len(removed) + len(changed)
+    total = _total(added, removed, changed)
     return 1 if (total and args.fail_on_diff) else 0
 
 
