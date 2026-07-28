@@ -42,9 +42,7 @@ def test_load_docker_source():
 
 
 def test_load_ssm_source():
-    payload = json.dumps(
-        {"Parameters": [{"Name": "/app/FOO", "Value": "bar"}]}
-    )
+    payload = json.dumps({"Parameters": [{"Name": "/app/FOO", "Value": "bar"}]})
     with patch("envdiff.subprocess.run") as run:
         run.return_value.stdout = payload
         env = load("ssm:/app")

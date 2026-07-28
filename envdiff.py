@@ -69,7 +69,9 @@ def mask(key, value, no_mask=False):
     """Replace secret-looking values with a fingerprint + shape hint unless no_mask."""
     if no_mask or not looks_secret(key, value):
         return value
-    return f"<masked:{fingerprint(value)} len={len(value)} charset={charset_class(value)}>"
+    return (
+        f"<masked:{fingerprint(value)} len={len(value)} charset={charset_class(value)}>"
+    )
 
 
 def parse_env_text(text):
