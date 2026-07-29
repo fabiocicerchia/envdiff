@@ -4,7 +4,6 @@
 [![Security](https://github.com/fabiocicerchia/envdiff/actions/workflows/security.yml/badge.svg)](https://github.com/fabiocicerchia/envdiff/actions/workflows/security.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/fabiocicerchia/envdiff/badge)](https://securityscorecards.dev/viewer/?uri=github.com/fabiocicerchia/envdiff)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ffabiocicerchia%2Fenvdiff.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ffabiocicerchia%2Fenvdiff?ref=badge_shield)
 [![Release](https://img.shields.io/github/v/release/fabiocicerchia/envdiff)](https://github.com/fabiocicerchia/envdiff/releases)
 
 Diff environment variables **between two running environments** with
