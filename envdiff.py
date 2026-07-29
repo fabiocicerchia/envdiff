@@ -27,7 +27,7 @@ import sys
 
 SECRET_KEY_RE = re.compile(
     r"(secret|token|password|passwd|api_?key|private|credential|auth|cert|salt|dsn)",
-    re.I,
+    re.IGNORECASE,
 )
 
 
@@ -69,9 +69,7 @@ def mask(key, value, no_mask=False):
     """Replace secret-looking values with a fingerprint + shape hint unless no_mask."""
     if no_mask or not looks_secret(key, value):
         return value
-    return (
-        f"<masked:{fingerprint(value)} len={len(value)} charset={charset_class(value)}>"
-    )
+    return f"<masked:{fingerprint(value)} len={len(value)} charset={charset_class(value)}>"
 
 
 def parse_env_text(text):
@@ -107,9 +105,7 @@ def load(source):
         if len(parts) > 2:
             cmd += ["-c", parts[2]]
         cmd += ["--", "env"]
-        out = subprocess.run(
-            cmd, check=True, capture_output=True, text=True
-        )  # nosec B603
+        out = subprocess.run(cmd, check=True, capture_output=True, text=True)  # nosec B603
         return parse_env_text(out.stdout)
     if source.startswith("docker:"):
         out = subprocess.run(
@@ -174,9 +170,7 @@ def diff(a, b, ignore=()):
 
     added = {k: b[k] for k in b.keys() - a.keys() if not ignored(k)}
     removed = {k: a[k] for k in a.keys() - b.keys() if not ignored(k)}
-    changed = {
-        k: (a[k], b[k]) for k in a.keys() & b.keys() if a[k] != b[k] and not ignored(k)
-    }
+    changed = {k: (a[k], b[k]) for k in a.keys() & b.keys() if a[k] != b[k] and not ignored(k)}
     return added, removed, changed
 
 
@@ -189,8 +183,7 @@ def render_text(added, removed, changed, left, right, show):
     lines = [f"+ {k}={show(k, added[k])}" for k in sorted(added)]
     lines += [f"- {k}={show(k, removed[k])}" for k in sorted(removed)]
     lines += [
-        f"~ {k}: {show(k, changed[k][0])} -> {show(k, changed[k][1])}"
-        for k in sorted(changed)
+        f"~ {k}: {show(k, changed[k][0])} -> {show(k, changed[k][1])}" for k in sorted(changed)
     ]
     total = _total(added, removed, changed)
     lines.append("")
@@ -226,8 +219,7 @@ def render_json(added, removed, changed, left, right, show):
             "added": {k: show(k, v) for k, v in added.items()},
             "removed": {k: show(k, v) for k, v in removed.items()},
             "changed": {
-                k: {"old": show(k, old), "new": show(k, new)}
-                for k, (old, new) in changed.items()
+                k: {"old": show(k, old), "new": show(k, new)} for k, (old, new) in changed.items()
             },
             "summary": {
                 "total": _total(added, removed, changed),
@@ -255,9 +247,7 @@ def main(argv=None):
     )
     p.add_argument("left", help="first environment (see sources above)")
     p.add_argument("right", help="second environment")
-    p.add_argument(
-        "--no-mask", action="store_true", help="print raw values (careful in CI logs!)"
-    )
+    p.add_argument("--no-mask", action="store_true", help="print raw values (careful in CI logs!)")
     p.add_argument(
         "--ignore",
         action="append",
@@ -265,9 +255,7 @@ def main(argv=None):
         metavar="REGEX",
         help="ignore keys matching regex (repeatable)",
     )
-    p.add_argument(
-        "--fail-on-diff", action="store_true", help="exit 1 when environments differ"
-    )
+    p.add_argument("--fail-on-diff", action="store_true", help="exit 1 when environments differ")
     p.add_argument(
         "--format",
         choices=sorted(RENDERERS),
