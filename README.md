@@ -58,6 +58,25 @@ envdiff a.env b.env --no-mask             # only when you really mean it
 `make dev` then `make test` / `make lint`. Deeper docs live in [`docs/`](docs/),
 runnable examples in [`examples/`](examples/).
 
+## Usage
+
+```sh
+# two dotenv files
+envdiff .env.staging .env.prod
+
+# stdin and a command
+kubectl exec pod -- env | envdiff - cmd:'ssh prod env'
+
+# live pods, ignoring noisy keys
+envdiff k8s:staging/api-7d9f k8s:prod/api-5c2a --ignore 'HOSTNAME|POD_.*'
+```
+
+More in [`docs/getting-started.md`](docs/getting-started.md).
+
+## Documentation
+
+Full docs live in [`docs/`](docs/). Runnable examples live in [`examples/`](examples/).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). By participating you agree to the
