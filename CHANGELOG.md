@@ -5,6 +5,13 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
 release-please — don't edit it by hand. The project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2](https://github.com/fabiocicerchia/envdiff/compare/v0.1.1...v0.1.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* security and code-quality findings ([#27](https://github.com/fabiocicerchia/envdiff/issues/27)) ([4e1e9a5](https://github.com/fabiocicerchia/envdiff/commit/4e1e9a5df569d869dd5316ddc50eb830415bb007))
+
 ## [0.1.1](https://github.com/fabiocicerchia/envdiff/compare/v0.1.0...v0.1.1) (2026-08-06)
 
 
