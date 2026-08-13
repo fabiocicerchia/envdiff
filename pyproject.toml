@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "envdiff"
-version = "0.1.1"
+version = "0.1.2"
 description = "Diff env vars/configs between two running environments, with secret masking"
 readme = "README.md"
 license = { text = "Apache-2.0" }
