@@ -5,6 +5,18 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
 release-please — don't edit it by hand. The project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/fabiocicerchia/envdiff/compare/v0.1.2...v0.2.0) (2026-08-25)
+
+
+### Features
+
+* **docs:** build the docs site in Actions and drop Read the Docs ([#38](https://github.com/fabiocicerchia/envdiff/issues/38)) ([45e1c8d](https://github.com/fabiocicerchia/envdiff/commit/45e1c8de3b022314c22f7014fd487c0885b86c60))
+
+
+### Bug Fixes
+
+* **ci:** compute the next release PR after the draft is published ([#35](https://github.com/fabiocicerchia/envdiff/issues/35)) ([d4e037e](https://github.com/fabiocicerchia/envdiff/commit/d4e037e073aa507db5e5f1cfade74a063f5b15e4))
+
 ## [0.1.2](https://github.com/fabiocicerchia/envdiff/compare/v0.1.1...v0.1.2) (2026-08-13)
 
 
