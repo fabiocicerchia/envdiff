@@ -34,4 +34,4 @@ without revealing it.
 envdiff a.env b.env --fail-on-diff   # exit 1 when environments differ
 ```
 
-See the top-level [README](../README.md) for the full source syntax and flags.
+See the top-level [README](README.md) for the full source syntax and flags.
