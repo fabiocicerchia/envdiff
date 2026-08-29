@@ -5,6 +5,13 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
 release-please — don't edit it by hand. The project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/fabiocicerchia/envdiff/compare/v0.2.0...v0.2.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* unblock quality and clear the Scorecard pinned-dependencies finding ([#46](https://github.com/fabiocicerchia/envdiff/issues/46)) ([e93ba88](https://github.com/fabiocicerchia/envdiff/commit/e93ba8846310f5a30e256fad7076aa2cd766674a))
+
 ## [0.2.0](https://github.com/fabiocicerchia/envdiff/compare/v0.1.2...v0.2.0) (2026-08-25)
 
 
