@@ -106,52 +106,75 @@ def capture(argv):
     return out.stdout
 
 
+def load_cmd(command):
+    """Environment printed by an arbitrary command."""
+    # ponytail: shlex.split + shell=False runs the user's command without a
+    # shell interpreting metacharacters. For pipes, use cmd:sh -c '...'.
+    return parse_env_text(capture(shlex.split(command)))
+
+
+def load_k8s(target):
+    """Environment of a running pod, addressed as ns/pod[/container]."""
+    parts = target.split("/")
+    argv = ["kubectl", "-n", parts[0], "exec", parts[1]]
+    if len(parts) > 2:
+        argv += ["-c", parts[2]]
+    return parse_env_text(capture(argv + ["--", "env"]))
+
+
+def load_docker(container):
+    """Environment of a running container."""
+    return parse_env_text(capture(["docker", "exec", container, "env"]))
+
+
+def load_ssm(path):
+    """AWS SSM parameters under a path, decrypted; last path segment is the key."""
+    stdout = capture(
+        [
+            "aws",
+            "ssm",
+            "get-parameters-by-path",
+            "--path",
+            path,
+            "--recursive",
+            "--with-decryption",
+            "--output",
+            "json",
+        ]
+    )
+    params = json.loads(stdout).get("Parameters", [])
+    return {p["Name"].rsplit("/", 1)[-1]: p["Value"] for p in params}
+
+
+def load_secrets(name):
+    """An AWS Secrets Manager secret: a JSON object of vars, or one raw value."""
+    stdout = capture(
+        ["aws", "secretsmanager", "get-secret-value", "--secret-id", name, "--output", "json"]
+    )
+    secret_string = json.loads(stdout).get("SecretString", "")
+    try:
+        # structured secret: {"KEY": "value", ...}
+        return {k: str(v) for k, v in json.loads(secret_string).items()}
+    except (ValueError, AttributeError):
+        return {name: secret_string}
+
+
+SOURCE_LOADERS = {
+    "cmd:": load_cmd,
+    "k8s:": load_k8s,
+    "docker:": load_docker,
+    "ssm:": load_ssm,
+    "secrets:": load_secrets,
+}
+
+
 def load(source):
-    """Load an environment dict from a file, stdin, `cmd:` or `k8s:` source."""
+    """Load an environment dict from a source argument (see the module docstring)."""
     if source == "-":
         return parse_env_text(sys.stdin.read())
-    if source.startswith("cmd:"):
-        # ponytail: shlex.split + shell=False runs the user's command without a
-        # shell interpreting metacharacters. For pipes, use cmd:sh -c '...'.
-        return parse_env_text(capture(shlex.split(source[4:])))
-    if source.startswith("k8s:"):
-        parts = source[4:].split("/")
-        ns, pod = parts[0], parts[1]
-        cmd = ["kubectl", "-n", ns, "exec", pod]
-        if len(parts) > 2:
-            cmd += ["-c", parts[2]]
-        cmd += ["--", "env"]
-        return parse_env_text(capture(cmd))
-    if source.startswith("docker:"):
-        return parse_env_text(capture(["docker", "exec", source[7:], "env"]))
-    if source.startswith("ssm:"):
-        # aws ssm parameters-by-path, decrypted; last path segment is the key
-        stdout = capture(
-            [
-                "aws",
-                "ssm",
-                "get-parameters-by-path",
-                "--path",
-                source[4:],
-                "--recursive",
-                "--with-decryption",
-                "--output",
-                "json",
-            ]
-        )
-        params = json.loads(stdout).get("Parameters", [])
-        return {p["Name"].rsplit("/", 1)[-1]: p["Value"] for p in params}
-    if source.startswith("secrets:"):
-        name = source[8:]
-        stdout = capture(
-            ["aws", "secretsmanager", "get-secret-value", "--secret-id", name, "--output", "json"]
-        )
-        secret_string = json.loads(stdout).get("SecretString", "")
-        try:
-            # structured secret: {"KEY": "value", ...}
-            return {k: str(v) for k, v in json.loads(secret_string).items()}
-        except (ValueError, AttributeError):
-            return {name: secret_string}
+    for prefix, loader in SOURCE_LOADERS.items():
+        if source.startswith(prefix):
+            return loader(source[len(prefix) :])
     with open(source) as fh:
         return parse_env_text(fh.read())
 
