@@ -17,6 +17,7 @@ without ever printing it.
 """
 
 import argparse
+import functools
 import hashlib
 import json
 import math
@@ -155,19 +156,20 @@ def load(source):
         return parse_env_text(fh.read())
 
 
+def ignored(key, ignore_res):
+    """True if key matches any of the compiled --ignore patterns end to end."""
+    return any(pattern.fullmatch(key) for pattern in ignore_res)
+
+
 def diff(left, right, ignore=()):
     """Return (added, removed, changed) between the left and right env dicts."""
     ignore_res = [re.compile(pattern) for pattern in ignore]
-
-    def ignored(key):
-        return any(r.fullmatch(key) for r in ignore_res)
-
-    added = {k: right[k] for k in right.keys() - left.keys() if not ignored(k)}
-    removed = {k: left[k] for k in left.keys() - right.keys() if not ignored(k)}
+    added = {k: right[k] for k in right.keys() - left.keys() if not ignored(k, ignore_res)}
+    removed = {k: left[k] for k in left.keys() - right.keys() if not ignored(k, ignore_res)}
     changed = {
         k: (left[k], right[k])
         for k in left.keys() & right.keys()
-        if left[k] != right[k] and not ignored(k)
+        if left[k] != right[k] and not ignored(k, ignore_res)
     }
     return added, removed, changed
 
@@ -268,10 +270,7 @@ def main(argv=None):
 
     left, right = load(args.left), load(args.right)
     added, removed, changed = diff(left, right, args.ignore)
-
-    def show(k, v):
-        return mask(k, v, args.no_mask)
-
+    show = functools.partial(mask, no_mask=args.no_mask)
     print(RENDERERS[args.format](added, removed, changed, left, right, show))
 
     total = _total(added, removed, changed)
