@@ -95,6 +95,16 @@ def parse_env_text(text):
     return env
 
 
+def capture(argv):
+    """Run argv with no shell and return its stdout; raise if it exits non-zero.
+
+    Every source that shells out goes through here: a copy that forgot
+    check=True would read an empty environment as "every variable removed".
+    """
+    out = subprocess.run(argv, check=True, capture_output=True, text=True)  # nosec B603
+    return out.stdout
+
+
 def load(source):
     """Load an environment dict from a file, stdin, `cmd:` or `k8s:` source."""
     if source == "-":
@@ -102,13 +112,7 @@ def load(source):
     if source.startswith("cmd:"):
         # ponytail: shlex.split + shell=False runs the user's command without a
         # shell interpreting metacharacters. For pipes, use cmd:sh -c '...'.
-        out = subprocess.run(
-            shlex.split(source[4:]),
-            check=True,  # nosec B603
-            capture_output=True,
-            text=True,
-        )
-        return parse_env_text(out.stdout)
+        return parse_env_text(capture(shlex.split(source[4:])))
     if source.startswith("k8s:"):
         parts = source[4:].split("/")
         ns, pod = parts[0], parts[1]
@@ -116,19 +120,12 @@ def load(source):
         if len(parts) > 2:
             cmd += ["-c", parts[2]]
         cmd += ["--", "env"]
-        out = subprocess.run(cmd, check=True, capture_output=True, text=True)  # nosec B603
-        return parse_env_text(out.stdout)
+        return parse_env_text(capture(cmd))
     if source.startswith("docker:"):
-        out = subprocess.run(
-            ["docker", "exec", source[7:], "env"],
-            check=True,
-            capture_output=True,
-            text=True,
-        )  # nosec B603
-        return parse_env_text(out.stdout)
+        return parse_env_text(capture(["docker", "exec", source[7:], "env"]))
     if source.startswith("ssm:"):
         # aws ssm parameters-by-path, decrypted; last path segment is the key
-        out = subprocess.run(
+        stdout = capture(
             [
                 "aws",
                 "ssm",
@@ -139,30 +136,16 @@ def load(source):
                 "--with-decryption",
                 "--output",
                 "json",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )  # nosec B603
-        params = json.loads(out.stdout).get("Parameters", [])
+            ]
+        )
+        params = json.loads(stdout).get("Parameters", [])
         return {p["Name"].rsplit("/", 1)[-1]: p["Value"] for p in params}
     if source.startswith("secrets:"):
         name = source[8:]
-        out = subprocess.run(
-            [
-                "aws",
-                "secretsmanager",
-                "get-secret-value",
-                "--secret-id",
-                name,
-                "--output",
-                "json",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )  # nosec B603
-        secret_string = json.loads(out.stdout).get("SecretString", "")
+        stdout = capture(
+            ["aws", "secretsmanager", "get-secret-value", "--secret-id", name, "--output", "json"]
+        )
+        secret_string = json.loads(stdout).get("SecretString", "")
         try:
             # structured secret: {"KEY": "value", ...}
             return {k: str(v) for k, v in json.loads(secret_string).items()}
