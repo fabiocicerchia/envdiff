@@ -155,16 +155,20 @@ def load(source):
         return parse_env_text(fh.read())
 
 
-def diff(a, b, ignore=()):
-    """Return (added, removed, changed) between env dicts a and b."""
-    ignore_re = [re.compile(p) for p in ignore]
+def diff(left, right, ignore=()):
+    """Return (added, removed, changed) between the left and right env dicts."""
+    ignore_res = [re.compile(pattern) for pattern in ignore]
 
-    def ignored(k):
-        return any(r.fullmatch(k) for r in ignore_re)
+    def ignored(key):
+        return any(r.fullmatch(key) for r in ignore_res)
 
-    added = {k: b[k] for k in b.keys() - a.keys() if not ignored(k)}
-    removed = {k: a[k] for k in a.keys() - b.keys() if not ignored(k)}
-    changed = {k: (a[k], b[k]) for k in a.keys() & b.keys() if a[k] != b[k] and not ignored(k)}
+    added = {k: right[k] for k in right.keys() - left.keys() if not ignored(k)}
+    removed = {k: left[k] for k in left.keys() - right.keys() if not ignored(k)}
+    changed = {
+        k: (left[k], right[k])
+        for k in left.keys() & right.keys()
+        if left[k] != right[k] and not ignored(k)
+    }
     return added, removed, changed
 
 
@@ -234,29 +238,33 @@ RENDERERS = {"text": render_text, "json": render_json, "markdown": render_markdo
 
 def main(argv=None):
     """CLI entry point: parse args, diff the two environments, print results."""
-    p = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser(
         prog="envdiff",
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("left", help="first environment (see sources above)")
-    p.add_argument("right", help="second environment")
-    p.add_argument("--no-mask", action="store_true", help="print raw values (careful in CI logs!)")
-    p.add_argument(
+    parser.add_argument("left", help="first environment (see sources above)")
+    parser.add_argument("right", help="second environment")
+    parser.add_argument(
+        "--no-mask", action="store_true", help="print raw values (careful in CI logs!)"
+    )
+    parser.add_argument(
         "--ignore",
         action="append",
         default=[],
         metavar="REGEX",
         help="ignore keys matching regex (repeatable)",
     )
-    p.add_argument("--fail-on-diff", action="store_true", help="exit 1 when environments differ")
-    p.add_argument(
+    parser.add_argument(
+        "--fail-on-diff", action="store_true", help="exit 1 when environments differ"
+    )
+    parser.add_argument(
         "--format",
         choices=sorted(RENDERERS),
         default="text",
         help="output format (default: text)",
     )
-    args = p.parse_args(argv)
+    args = parser.parse_args(argv)
 
     left, right = load(args.left), load(args.right)
     added, removed, changed = diff(left, right, args.ignore)
