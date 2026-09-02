@@ -17,6 +17,7 @@ without ever printing it.
 """
 
 import argparse
+import dataclasses
 import functools
 import hashlib
 import json
@@ -184,41 +185,57 @@ def ignored(key, ignore_res):
     return any(pattern.fullmatch(key) for pattern in ignore_res)
 
 
+@dataclasses.dataclass(frozen=True)
+class EnvDiff:
+    """One comparison of two environments, as every renderer consumes it."""
+
+    added: dict
+    removed: dict
+    changed: dict
+    left: dict
+    right: dict
+
+    @property
+    def total(self):
+        """Number of keys that differ."""
+        return len(self.added) + len(self.removed) + len(self.changed)
+
+
 def diff(left, right, ignore=()):
-    """Return (added, removed, changed) between the left and right env dicts."""
+    """Return the EnvDiff between the left and right env dicts."""
     ignore_res = [re.compile(pattern) for pattern in ignore]
-    added = {k: right[k] for k in right.keys() - left.keys() if not ignored(k, ignore_res)}
-    removed = {k: left[k] for k in left.keys() - right.keys() if not ignored(k, ignore_res)}
-    changed = {
-        k: (left[k], right[k])
-        for k in left.keys() & right.keys()
-        if left[k] != right[k] and not ignored(k, ignore_res)
-    }
-    return added, removed, changed
+    return EnvDiff(
+        added={k: right[k] for k in right.keys() - left.keys() if not ignored(k, ignore_res)},
+        removed={k: left[k] for k in left.keys() - right.keys() if not ignored(k, ignore_res)},
+        changed={
+            k: (left[k], right[k])
+            for k in left.keys() & right.keys()
+            if left[k] != right[k] and not ignored(k, ignore_res)
+        },
+        left=left,
+        right=right,
+    )
 
 
-def _total(added, removed, changed):
-    return len(added) + len(removed) + len(changed)
-
-
-def render_text(added, removed, changed, left, right, show):
+def render_text(result, show):
     """Render the diff as the classic +/-/~ line format."""
+    added, removed, changed = result.added, result.removed, result.changed
     lines = [f"+ {k}={show(k, added[k])}" for k in sorted(added)]
     lines += [f"- {k}={show(k, removed[k])}" for k in sorted(removed)]
     lines += [
         f"~ {k}: {show(k, changed[k][0])} -> {show(k, changed[k][1])}" for k in sorted(changed)
     ]
-    total = _total(added, removed, changed)
     lines.append("")
     lines.append(
-        f"{total} difference(s): {len(added)} added, {len(removed)} removed, "
-        f"{len(changed)} changed ({len(left)} vs {len(right)} vars)"
+        f"{result.total} difference(s): {len(added)} added, {len(removed)} removed, "
+        f"{len(changed)} changed ({len(result.left)} vs {len(result.right)} vars)"
     )
     return "\n".join(lines)
 
 
-def render_markdown(added, removed, changed, left, right, show):
+def render_markdown(result, show):
     """Render the diff as a markdown table, safe to paste into a PR/ticket."""
+    added, removed, changed = result.added, result.removed, result.changed
     lines = ["| | Key | Value |", "|---|---|---|"]
     lines += [f"| + | `{k}` | `{show(k, added[k])}` |" for k in sorted(added)]
     lines += [f"| - | `{k}` | `{show(k, removed[k])}` |" for k in sorted(removed)]
@@ -226,31 +243,31 @@ def render_markdown(added, removed, changed, left, right, show):
         f"| ~ | `{k}` | `{show(k, changed[k][0])}` → `{show(k, changed[k][1])}` |"
         for k in sorted(changed)
     ]
-    total = _total(added, removed, changed)
     lines.append("")
     lines.append(
-        f"**{total} difference(s)**: {len(added)} added, {len(removed)} removed, "
-        f"{len(changed)} changed ({len(left)} vs {len(right)} vars)"
+        f"**{result.total} difference(s)**: {len(added)} added, {len(removed)} removed, "
+        f"{len(changed)} changed ({len(result.left)} vs {len(result.right)} vars)"
     )
     return "\n".join(lines)
 
 
-def render_json(added, removed, changed, left, right, show):
+def render_json(result, show):
     """Render the diff as a JSON object, for scripting."""
     return json.dumps(
         {
-            "added": {k: show(k, v) for k, v in added.items()},
-            "removed": {k: show(k, v) for k, v in removed.items()},
+            "added": {k: show(k, v) for k, v in result.added.items()},
+            "removed": {k: show(k, v) for k, v in result.removed.items()},
             "changed": {
-                k: {"old": show(k, old), "new": show(k, new)} for k, (old, new) in changed.items()
+                k: {"old": show(k, old), "new": show(k, new)}
+                for k, (old, new) in result.changed.items()
             },
             "summary": {
-                "total": _total(added, removed, changed),
-                "added": len(added),
-                "removed": len(removed),
-                "changed": len(changed),
-                "left_vars": len(left),
-                "right_vars": len(right),
+                "total": result.total,
+                "added": len(result.added),
+                "removed": len(result.removed),
+                "changed": len(result.changed),
+                "left_vars": len(result.left),
+                "right_vars": len(result.right),
             },
         },
         indent=2,
@@ -291,13 +308,10 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    left, right = load(args.left), load(args.right)
-    added, removed, changed = diff(left, right, args.ignore)
+    result = diff(load(args.left), load(args.right), args.ignore)
     show = functools.partial(mask, no_mask=args.no_mask)
-    print(RENDERERS[args.format](added, removed, changed, left, right, show))
-
-    total = _total(added, removed, changed)
-    return 1 if (total and args.fail_on_diff) else 0
+    print(RENDERERS[args.format](result, show))
+    return 1 if (result.total and args.fail_on_diff) else 0
 
 
 if __name__ == "__main__":

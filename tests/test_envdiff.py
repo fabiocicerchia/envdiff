@@ -24,8 +24,11 @@ def test_mask_is_stable_fingerprint():
 def test_diff_and_ignore():
     a = {"A": "1", "B": "2", "HOSTNAME": "x"}
     b = {"A": "1", "B": "3", "C": "4", "HOSTNAME": "y"}
-    added, removed, changed = diff(a, b, ignore=["HOSTNAME"])
-    assert added == {"C": "4"} and removed == {} and changed == {"B": ("2", "3")}
+    result = diff(a, b, ignore=["HOSTNAME"])
+    assert result.added == {"C": "4"}
+    assert result.removed == {}
+    assert result.changed == {"B": ("2", "3")}
+    assert result.total == 2
 
 
 def test_mask_shows_length_and_charset_shape_hint():
