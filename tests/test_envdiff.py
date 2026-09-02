@@ -87,6 +87,32 @@ def test_cli_json_format(tmp_path, capsys):
     assert out["summary"]["total"] == 2
 
 
+def test_missing_source_file_exits_noinput(tmp_path):
+    right = tmp_path / "b"
+    right.write_text("X=1\n")
+    assert main([str(tmp_path / "absent"), str(right)]) == 66
+
+
+def test_bad_ignore_pattern_exits_dataerr(tmp_path):
+    left, right = tmp_path / "a", tmp_path / "b"
+    left.write_text("X=1\n")
+    right.write_text("X=2\n")
+    assert main([str(left), str(right), "--ignore", "["]) == 65
+
+
+def test_failing_source_command_exits_unavailable(tmp_path):
+    right = tmp_path / "b"
+    right.write_text("X=1\n")
+    assert main(["cmd:false", str(right)]) == 69
+
+
+def test_diff_alone_still_exits_one(tmp_path):
+    left, right = tmp_path / "a", tmp_path / "b"
+    left.write_text("X=1\n")
+    right.write_text("X=2\n")
+    assert main([str(left), str(right), "--fail-on-diff"]) == 1
+
+
 def test_cli_markdown_format(tmp_path, capsys):
     left, right = tmp_path / "a.env", tmp_path / "b.env"
     left.write_text("X=1\n")

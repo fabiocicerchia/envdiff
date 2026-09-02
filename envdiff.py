@@ -39,6 +39,14 @@ BASE64_RE = re.compile(r"[A-Za-z0-9+/]+=*")
 SECRET_MIN_LENGTH = 16
 SECRET_MIN_ENTROPY_BITS = 4.0
 
+# Exit codes, sysexits(3). 1 stays "the environments differ" — it is the
+# documented --fail-on-diff CI gate — so every other failure gets its own code
+# and a broken source can no longer be mistaken for drift. 2 is argparse's own.
+EXIT_DIFF = 1
+EXIT_DATAERR = 65  # an --ignore value is not a valid regex
+EXIT_NOINPUT = 66  # a source file or command could not be found
+EXIT_UNAVAILABLE = 69  # a source command ran and failed
+
 
 def shannon_entropy(value):
     """Return the Shannon entropy (bits/char) of a string."""
@@ -308,10 +316,21 @@ def main(argv=None):
     )
     args = parser.parse_args(argv)
 
-    result = diff(load(args.left), load(args.right), args.ignore)
+    try:
+        result = diff(load(args.left), load(args.right), args.ignore)
+    except re.error as exc:
+        print(f"envdiff: error: bad --ignore pattern: {exc}", file=sys.stderr)
+        return EXIT_DATAERR
+    except subprocess.CalledProcessError as exc:
+        print(f"envdiff: error: source command exited {exc.returncode}", file=sys.stderr)
+        return EXIT_UNAVAILABLE
+    except OSError as exc:
+        print(f"envdiff: error: {exc.filename}: {exc.strerror}", file=sys.stderr)
+        return EXIT_NOINPUT
+
     show = functools.partial(mask, no_mask=args.no_mask)
     print(RENDERERS[args.format](result, show))
-    return 1 if (result.total and args.fail_on_diff) else 0
+    return EXIT_DIFF if (result.total and args.fail_on_diff) else 0
 
 
 if __name__ == "__main__":
