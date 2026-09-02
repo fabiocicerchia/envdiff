@@ -29,6 +29,13 @@ SECRET_KEY_RE = re.compile(
     r"(secret|token|password|passwd|api_?key|private|credential|auth|cert|salt|dsn)",
     re.IGNORECASE,
 )
+HEX_RE = re.compile(r"[0-9a-fA-F]+")
+BASE64_RE = re.compile(r"[A-Za-z0-9+/]+=*")
+
+# A value is treated as a credential on its shape alone once it is at least this
+# long and this random; below either bound, English prose scores the same.
+SECRET_MIN_LENGTH = 16
+SECRET_MIN_ENTROPY_BITS = 4.0
 
 
 def shannon_entropy(value):
@@ -44,7 +51,11 @@ def looks_secret(key, value):
     if SECRET_KEY_RE.search(key):
         return True
     # long, high-entropy, no spaces → probably a credential
-    return len(value) >= 16 and " " not in value and shannon_entropy(value) > 4.0
+    return (
+        len(value) >= SECRET_MIN_LENGTH
+        and " " not in value
+        and shannon_entropy(value) > SECRET_MIN_ENTROPY_BITS
+    )
 
 
 def fingerprint(value):
@@ -56,11 +67,11 @@ def charset_class(value):
     """Classify a string's charset as a shape hint, without revealing it."""
     if value.isdigit():
         return "numeric"
-    if re.fullmatch(r"[0-9a-fA-F]+", value):
+    if HEX_RE.fullmatch(value):
         return "hex"
     if value.isalnum():
         return "alnum"
-    if re.fullmatch(r"[A-Za-z0-9+/]+=*", value):
+    if BASE64_RE.fullmatch(value):
         return "base64"
     return "mixed"
 
