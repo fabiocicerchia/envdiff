@@ -24,8 +24,11 @@ def test_mask_is_stable_fingerprint():
 def test_diff_and_ignore():
     a = {"A": "1", "B": "2", "HOSTNAME": "x"}
     b = {"A": "1", "B": "3", "C": "4", "HOSTNAME": "y"}
-    added, removed, changed = diff(a, b, ignore=["HOSTNAME"])
-    assert added == {"C": "4"} and removed == {} and changed == {"B": ("2", "3")}
+    result = diff(a, b, ignore=["HOSTNAME"])
+    assert result.added == {"C": "4"}
+    assert result.removed == {}
+    assert result.changed == {"B": ("2", "3")}
+    assert result.total == 2
 
 
 def test_mask_shows_length_and_charset_shape_hint():
@@ -82,6 +85,32 @@ def test_cli_json_format(tmp_path, capsys):
     assert out["changed"] == {"X": {"old": "1", "new": "2"}}
     assert out["added"] == {"Y": "3"}
     assert out["summary"]["total"] == 2
+
+
+def test_missing_source_file_exits_noinput(tmp_path):
+    right = tmp_path / "b"
+    right.write_text("X=1\n")
+    assert main([str(tmp_path / "absent"), str(right)]) == 66
+
+
+def test_bad_ignore_pattern_exits_dataerr(tmp_path):
+    left, right = tmp_path / "a", tmp_path / "b"
+    left.write_text("X=1\n")
+    right.write_text("X=2\n")
+    assert main([str(left), str(right), "--ignore", "["]) == 65
+
+
+def test_failing_source_command_exits_unavailable(tmp_path):
+    right = tmp_path / "b"
+    right.write_text("X=1\n")
+    assert main(["cmd:false", str(right)]) == 69
+
+
+def test_diff_alone_still_exits_one(tmp_path):
+    left, right = tmp_path / "a", tmp_path / "b"
+    left.write_text("X=1\n")
+    right.write_text("X=2\n")
+    assert main([str(left), str(right), "--fail-on-diff"]) == 1
 
 
 def test_cli_markdown_format(tmp_path, capsys):

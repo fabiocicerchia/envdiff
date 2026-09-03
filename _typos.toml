@@ -1,0 +1,8 @@
+[default]
+# release-please writes git commit hashes into CHANGELOG.md, both as the link
+# label and in the commit URL. typos only skips hex that starts with a digit,
+# so a hash like "e93ba88" is split into words and "ba" is flagged as "by"/"be".
+extend-ignore-re = [
+  "/commit/[0-9a-f]{7,40}",
+  "\\[[0-9a-f]{7,40}\\]",
+]

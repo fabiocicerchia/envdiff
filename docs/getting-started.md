@@ -34,4 +34,9 @@ without revealing it.
 envdiff a.env b.env --fail-on-diff   # exit 1 when environments differ
 ```
 
+Only exit 1 means drift. A source that could not be read exits 66, an `--ignore`
+value that is not a valid regex exits 65, and a source command that ran and
+failed exits 69 — so a missing `kubectl` does not read as a clean environment or
+as drift. The full table is in [Architecture](architecture.md#exit-codes).
+
 See the top-level [README](README.md) for the full source syntax and flags.

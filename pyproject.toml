@@ -36,3 +36,9 @@ py-modules = ["envdiff"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+# Import envdiff.py from the checkout. Without this, tests/ is the only path
+# pytest prepends and `import envdiff` resolves to whatever is installed in
+# site-packages — the suite then passes against code that is not in the tree.
+pythonpath = ["."]

@@ -50,7 +50,8 @@ Or with pipx from a checkout:
 pipx install .
 envdiff .env.staging .env.prod
 envdiff cmd:'heroku run env -a app-stg' cmd:'heroku run env -a app-prd'
-envdiff a.env b.env --fail-on-diff        # CI drift gate (exit 1 on diff)
+envdiff a.env b.env --fail-on-diff        # CI drift gate (exit 1 on diff only;
+                                          # 65/66/69 mean the run itself broke)
 envdiff a.env b.env --no-mask             # only when you really mean it
 ```
 
