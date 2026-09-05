@@ -1,27 +1,32 @@
 import json
+from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from envdiff import diff, load, looks_secret, main, mask, parse_env_text
 
 
-def test_parse_handles_dotenv_quirks():
+def test_parse_handles_dotenv_quirks() -> None:
     env = parse_env_text('# comment\nexport FOO=bar\nBAZ="quoted"\n\nBROKEN_LINE\n')
     assert env == {"FOO": "bar", "BAZ": "quoted"}
 
 
-def test_secret_detection_by_key_and_entropy():
+def test_secret_detection_by_key_and_entropy() -> None:
     assert looks_secret("DB_PASSWORD", "hunter2")
     assert looks_secret("SOMETHING", "sk-9fXk2LmQ8vZt4Rw7Yb1NcE3H")  # high entropy
     assert not looks_secret("LOG_LEVEL", "debug")
 
 
-def test_mask_is_stable_fingerprint():
+def test_mask_is_stable_fingerprint() -> None:
     a = mask("API_TOKEN", "same-value-here-123")
     b = mask("API_TOKEN", "same-value-here-123")
-    assert a == b and a.startswith("<masked:") and "same-value" not in a
+    assert a == b
+    assert a.startswith("<masked:")
+    assert "same-value" not in a
 
 
-def test_diff_and_ignore():
+def test_diff_and_ignore() -> None:
     a = {"A": "1", "B": "2", "HOSTNAME": "x"}
     b = {"A": "1", "B": "3", "C": "4", "HOSTNAME": "y"}
     result = diff(a, b, ignore=["HOSTNAME"])
@@ -31,12 +36,13 @@ def test_diff_and_ignore():
     assert result.total == 2
 
 
-def test_mask_shows_length_and_charset_shape_hint():
+def test_mask_shows_length_and_charset_shape_hint() -> None:
     masked = mask("API_TOKEN", "sk9fXk2LmQ8vZt4Rw7Yb1NcE3H")
-    assert "len=26" in masked and "charset=alnum" in masked
+    assert "len=26" in masked
+    assert "charset=alnum" in masked
 
 
-def test_load_docker_source():
+def test_load_docker_source() -> None:
     with patch("envdiff.subprocess.run") as run:
         run.return_value.stdout = "FOO=bar\n"
         env = load("docker:my-container")
@@ -44,7 +50,7 @@ def test_load_docker_source():
         assert run.call_args.args[0] == ["docker", "exec", "my-container", "env"]
 
 
-def test_load_ssm_source():
+def test_load_ssm_source() -> None:
     payload = json.dumps({"Parameters": [{"Name": "/app/FOO", "Value": "bar"}]})
     with patch("envdiff.subprocess.run") as run:
         run.return_value.stdout = payload
@@ -52,7 +58,7 @@ def test_load_ssm_source():
         assert env == {"FOO": "bar"}
 
 
-def test_load_secrets_source_structured():
+def test_load_secrets_source_structured() -> None:
     payload = json.dumps({"SecretString": json.dumps({"FOO": "bar"})})
     with patch("envdiff.subprocess.run") as run:
         run.return_value.stdout = payload
@@ -60,7 +66,7 @@ def test_load_secrets_source_structured():
         assert env == {"FOO": "bar"}
 
 
-def test_load_secrets_source_plain_string():
+def test_load_secrets_source_plain_string() -> None:
     payload = json.dumps({"SecretString": "raw-value"})
     with patch("envdiff.subprocess.run") as run:
         run.return_value.stdout = payload
@@ -68,7 +74,7 @@ def test_load_secrets_source_plain_string():
         assert env == {"my-secret": "raw-value"}
 
 
-def test_cli_fail_on_diff(tmp_path, capsys):
+def test_cli_fail_on_diff(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     left, right = tmp_path / "a.env", tmp_path / "b.env"
     left.write_text("X=1\n")
     right.write_text("X=2\n")
@@ -76,7 +82,7 @@ def test_cli_fail_on_diff(tmp_path, capsys):
     assert "~ X: 1 -> 2" in capsys.readouterr().out
 
 
-def test_cli_json_format(tmp_path, capsys):
+def test_cli_json_format(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     left, right = tmp_path / "a.env", tmp_path / "b.env"
     left.write_text("X=1\n")
     right.write_text("X=2\nY=3\n")
@@ -87,33 +93,33 @@ def test_cli_json_format(tmp_path, capsys):
     assert out["summary"]["total"] == 2
 
 
-def test_missing_source_file_exits_noinput(tmp_path):
+def test_missing_source_file_exits_noinput(tmp_path: Path) -> None:
     right = tmp_path / "b"
     right.write_text("X=1\n")
     assert main([str(tmp_path / "absent"), str(right)]) == 66
 
 
-def test_bad_ignore_pattern_exits_dataerr(tmp_path):
+def test_bad_ignore_pattern_exits_dataerr(tmp_path: Path) -> None:
     left, right = tmp_path / "a", tmp_path / "b"
     left.write_text("X=1\n")
     right.write_text("X=2\n")
     assert main([str(left), str(right), "--ignore", "["]) == 65
 
 
-def test_failing_source_command_exits_unavailable(tmp_path):
+def test_failing_source_command_exits_unavailable(tmp_path: Path) -> None:
     right = tmp_path / "b"
     right.write_text("X=1\n")
     assert main(["cmd:false", str(right)]) == 69
 
 
-def test_diff_alone_still_exits_one(tmp_path):
+def test_diff_alone_still_exits_one(tmp_path: Path) -> None:
     left, right = tmp_path / "a", tmp_path / "b"
     left.write_text("X=1\n")
     right.write_text("X=2\n")
     assert main([str(left), str(right), "--fail-on-diff"]) == 1
 
 
-def test_cli_markdown_format(tmp_path, capsys):
+def test_cli_markdown_format(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     left, right = tmp_path / "a.env", tmp_path / "b.env"
     left.write_text("X=1\n")
     right.write_text("X=2\n")

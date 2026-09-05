@@ -26,6 +26,16 @@ import re
 import shlex
 import subprocess
 import sys
+from collections.abc import Callable, Sequence
+from pathlib import Path
+
+# An environment as every loader produces it and every renderer consumes it.
+# `ns/pod` addresses a pod; a third part names a container inside it.
+_K8S_TARGET_WITH_CONTAINER = 2
+
+Env = dict[str, str]
+# How a value reaches the output: masked, or not, per `--no-mask`.
+Show = Callable[[str, str], str]
 
 SECRET_KEY_RE = re.compile(
     r"(secret|token|password|passwd|api_?key|private|credential|auth|cert|salt|dsn)",
@@ -48,7 +58,7 @@ EXIT_NOINPUT = 66  # a source file or command could not be found
 EXIT_UNAVAILABLE = 69  # a source command ran and failed
 
 
-def shannon_entropy(value):
+def shannon_entropy(value: str) -> float:
     """Return the Shannon entropy (bits/char) of a string."""
     if not value:
         return 0.0
@@ -56,24 +66,20 @@ def shannon_entropy(value):
     return -sum((n / len(value)) * math.log2(n / len(value)) for n in freq.values())
 
 
-def looks_secret(key, value):
+def looks_secret(key: str, value: str) -> bool:
     """True if a key name or its value looks like a credential."""
     if SECRET_KEY_RE.search(key):
         return True
     # long, high-entropy, no spaces → probably a credential
-    return (
-        len(value) >= SECRET_MIN_LENGTH
-        and " " not in value
-        and shannon_entropy(value) > SECRET_MIN_ENTROPY_BITS
-    )
+    return len(value) >= SECRET_MIN_LENGTH and " " not in value and shannon_entropy(value) > SECRET_MIN_ENTROPY_BITS
 
 
-def fingerprint(value):
+def fingerprint(value: str) -> str:
     """Return a stable 6-char hash so equal secrets compare equal."""
     return hashlib.sha256(value.encode()).hexdigest()[:6]
 
 
-def charset_class(value):
+def charset_class(value: str) -> str:
     """Classify a string's charset as a shape hint, without revealing it."""
     if value.isdigit():
         return "numeric"
@@ -86,18 +92,18 @@ def charset_class(value):
     return "mixed"
 
 
-def mask(key, value, no_mask=False):
+def mask(key: str, value: str, no_mask: bool = False) -> str:
     """Replace secret-looking values with a fingerprint + shape hint unless no_mask."""
     if no_mask or not looks_secret(key, value):
         return value
     return f"<masked:{fingerprint(value)} len={len(value)} charset={charset_class(value)}>"
 
 
-def parse_env_text(text):
+def parse_env_text(text: str) -> Env:
     """Parse KEY=VALUE lines (dotenv / `env` output) into a dict."""
     env = {}
-    for line in text.splitlines():
-        line = line.strip()
+    for raw in text.splitlines():
+        line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, _, value = line.partition("=")
@@ -105,38 +111,40 @@ def parse_env_text(text):
     return env
 
 
-def capture(argv):
+def capture(argv: list[str]) -> str:
     """Run argv with no shell and return its stdout; raise if it exits non-zero.
 
     Every source that shells out goes through here: a copy that forgot
     check=True would read an empty environment as "every variable removed".
     """
-    out = subprocess.run(argv, check=True, capture_output=True, text=True)  # nosec B603
+    # argv is a list built by the caller, never a string, and no shell is
+    # involved -- which is the whole reason every source funnels through here.
+    out = subprocess.run(argv, check=True, capture_output=True, text=True)  # noqa: S603
     return out.stdout
 
 
-def load_cmd(command):
+def load_cmd(command: str) -> Env:
     """Environment printed by an arbitrary command."""
     # ponytail: shlex.split + shell=False runs the user's command without a
     # shell interpreting metacharacters. For pipes, use cmd:sh -c '...'.
     return parse_env_text(capture(shlex.split(command)))
 
 
-def load_k8s(target):
+def load_k8s(target: str) -> Env:
     """Environment of a running pod, addressed as ns/pod[/container]."""
     parts = target.split("/")
     argv = ["kubectl", "-n", parts[0], "exec", parts[1]]
-    if len(parts) > 2:
+    if len(parts) > _K8S_TARGET_WITH_CONTAINER:
         argv += ["-c", parts[2]]
-    return parse_env_text(capture(argv + ["--", "env"]))
+    return parse_env_text(capture([*argv, "--", "env"]))
 
 
-def load_docker(container):
+def load_docker(container: str) -> Env:
     """Environment of a running container."""
     return parse_env_text(capture(["docker", "exec", container, "env"]))
 
 
-def load_ssm(path):
+def load_ssm(path: str) -> Env:
     """AWS SSM parameters under a path, decrypted; last path segment is the key."""
     stdout = capture(
         [
@@ -155,11 +163,9 @@ def load_ssm(path):
     return {p["Name"].rsplit("/", 1)[-1]: p["Value"] for p in params}
 
 
-def load_secrets(name):
+def load_secrets(name: str) -> Env:
     """An AWS Secrets Manager secret: a JSON object of vars, or one raw value."""
-    stdout = capture(
-        ["aws", "secretsmanager", "get-secret-value", "--secret-id", name, "--output", "json"]
-    )
+    stdout = capture(["aws", "secretsmanager", "get-secret-value", "--secret-id", name, "--output", "json"])
     secret_string = json.loads(stdout).get("SecretString", "")
     try:
         # structured secret: {"KEY": "value", ...}
@@ -177,18 +183,17 @@ SOURCE_LOADERS = {
 }
 
 
-def load(source):
+def load(source: str) -> Env:
     """Load an environment dict from a source argument (see the module docstring)."""
     if source == "-":
         return parse_env_text(sys.stdin.read())
     for prefix, loader in SOURCE_LOADERS.items():
         if source.startswith(prefix):
             return loader(source[len(prefix) :])
-    with open(source) as fh:
-        return parse_env_text(fh.read())
+    return parse_env_text(Path(source).read_text())
 
 
-def ignored(key, ignore_res):
+def ignored(key: str, ignore_res: list[re.Pattern[str]]) -> bool:
     """True if key matches any of the compiled --ignore patterns end to end."""
     return any(pattern.fullmatch(key) for pattern in ignore_res)
 
@@ -197,19 +202,19 @@ def ignored(key, ignore_res):
 class EnvDiff:
     """One comparison of two environments, as every renderer consumes it."""
 
-    added: dict
-    removed: dict
-    changed: dict
-    left: dict
-    right: dict
+    added: Env
+    removed: Env
+    changed: dict[str, tuple[str, str]]
+    left: Env
+    right: Env
 
     @property
-    def total(self):
+    def total(self) -> int:
         """Number of keys that differ."""
         return len(self.added) + len(self.removed) + len(self.changed)
 
 
-def diff(left, right, ignore=()):
+def diff(left: Env, right: Env, ignore: Sequence[str] = ()) -> EnvDiff:
     """Return the EnvDiff between the left and right env dicts."""
     ignore_res = [re.compile(pattern) for pattern in ignore]
     return EnvDiff(
@@ -225,14 +230,12 @@ def diff(left, right, ignore=()):
     )
 
 
-def render_text(result, show):
+def render_text(result: EnvDiff, show: Show) -> str:
     """Render the diff as the classic +/-/~ line format."""
     added, removed, changed = result.added, result.removed, result.changed
     lines = [f"+ {k}={show(k, added[k])}" for k in sorted(added)]
     lines += [f"- {k}={show(k, removed[k])}" for k in sorted(removed)]
-    lines += [
-        f"~ {k}: {show(k, changed[k][0])} -> {show(k, changed[k][1])}" for k in sorted(changed)
-    ]
+    lines += [f"~ {k}: {show(k, changed[k][0])} -> {show(k, changed[k][1])}" for k in sorted(changed)]
     lines.append("")
     lines.append(
         f"{result.total} difference(s): {len(added)} added, {len(removed)} removed, "
@@ -241,16 +244,13 @@ def render_text(result, show):
     return "\n".join(lines)
 
 
-def render_markdown(result, show):
+def render_markdown(result: EnvDiff, show: Show) -> str:
     """Render the diff as a markdown table, safe to paste into a PR/ticket."""
     added, removed, changed = result.added, result.removed, result.changed
     lines = ["| | Key | Value |", "|---|---|---|"]
     lines += [f"| + | `{k}` | `{show(k, added[k])}` |" for k in sorted(added)]
     lines += [f"| - | `{k}` | `{show(k, removed[k])}` |" for k in sorted(removed)]
-    lines += [
-        f"| ~ | `{k}` | `{show(k, changed[k][0])}` → `{show(k, changed[k][1])}` |"
-        for k in sorted(changed)
-    ]
+    lines += [f"| ~ | `{k}` | `{show(k, changed[k][0])}` → `{show(k, changed[k][1])}` |" for k in sorted(changed)]
     lines.append("")
     lines.append(
         f"**{result.total} difference(s)**: {len(added)} added, {len(removed)} removed, "
@@ -259,16 +259,13 @@ def render_markdown(result, show):
     return "\n".join(lines)
 
 
-def render_json(result, show):
+def render_json(result: EnvDiff, show: Show) -> str:
     """Render the diff as a JSON object, for scripting."""
     return json.dumps(
         {
             "added": {k: show(k, v) for k, v in result.added.items()},
             "removed": {k: show(k, v) for k, v in result.removed.items()},
-            "changed": {
-                k: {"old": show(k, old), "new": show(k, new)}
-                for k, (old, new) in result.changed.items()
-            },
+            "changed": {k: {"old": show(k, old), "new": show(k, new)} for k, (old, new) in result.changed.items()},
             "summary": {
                 "total": result.total,
                 "added": len(result.added),
@@ -286,7 +283,7 @@ def render_json(result, show):
 RENDERERS = {"text": render_text, "json": render_json, "markdown": render_markdown}
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point: parse args, diff the two environments, print results."""
     parser = argparse.ArgumentParser(
         prog="envdiff",
@@ -295,9 +292,7 @@ def main(argv=None):
     )
     parser.add_argument("left", help="first environment (see sources above)")
     parser.add_argument("right", help="second environment")
-    parser.add_argument(
-        "--no-mask", action="store_true", help="print raw values (careful in CI logs!)"
-    )
+    parser.add_argument("--no-mask", action="store_true", help="print raw values (careful in CI logs!)")
     parser.add_argument(
         "--ignore",
         action="append",
@@ -305,9 +300,7 @@ def main(argv=None):
         metavar="REGEX",
         help="ignore keys matching regex (repeatable)",
     )
-    parser.add_argument(
-        "--fail-on-diff", action="store_true", help="exit 1 when environments differ"
-    )
+    parser.add_argument("--fail-on-diff", action="store_true", help="exit 1 when environments differ")
     parser.add_argument(
         "--format",
         choices=sorted(RENDERERS),
@@ -319,17 +312,17 @@ def main(argv=None):
     try:
         result = diff(load(args.left), load(args.right), args.ignore)
     except re.error as exc:
-        print(f"envdiff: error: bad --ignore pattern: {exc}", file=sys.stderr)
+        print(f"envdiff: error: bad --ignore pattern: {exc}", file=sys.stderr)  # noqa: T201 — the tool's error output
         return EXIT_DATAERR
     except subprocess.CalledProcessError as exc:
-        print(f"envdiff: error: source command exited {exc.returncode}", file=sys.stderr)
+        print(f"envdiff: error: source command exited {exc.returncode}", file=sys.stderr)  # noqa: T201 — the tool's error output
         return EXIT_UNAVAILABLE
     except OSError as exc:
-        print(f"envdiff: error: {exc.filename}: {exc.strerror}", file=sys.stderr)
+        print(f"envdiff: error: {exc.filename}: {exc.strerror}", file=sys.stderr)  # noqa: T201 — the tool's error output
         return EXIT_NOINPUT
 
     show = functools.partial(mask, no_mask=args.no_mask)
-    print(RENDERERS[args.format](result, show))
+    print(RENDERERS[args.format](result, show))  # noqa: T201 — the tool's output
     return EXIT_DIFF if (result.total and args.fail_on_diff) else 0
 
 
