@@ -28,15 +28,15 @@ a shape change (e.g. a shorter key after rotation), without revealing it.
 
 ## Sources
 
-| Argument | Meaning |
-|---|---|
-| `file.env` | dotenv file / captured `env` output |
-| `-` | stdin |
-| `cmd:'ssh prod env'` | output of any command |
-| `k8s:ns/pod[/container]` | live pod env via `kubectl exec` |
-| `docker:container` | live container env via `docker exec` |
-| `ssm:/path/prefix` | AWS SSM parameters under a path (`aws ssm` CLI) |
-| `secrets:name` | AWS Secrets Manager secret (`aws secretsmanager` CLI) |
+| Argument                 | Meaning                                               |
+| ------------------------ | ----------------------------------------------------- |
+| `file.env`               | dotenv file / captured `env` output                   |
+| `-`                      | stdin                                                 |
+| `cmd:'ssh prod env'`     | output of any command                                 |
+| `k8s:ns/pod[/container]` | live pod env via `kubectl exec`                       |
+| `docker:container`       | live container env via `docker exec`                  |
+| `ssm:/path/prefix`       | AWS SSM parameters under a path (`aws ssm` CLI)       |
+| `secrets:name`           | AWS Secrets Manager secret (`aws secretsmanager` CLI) |
 
 ## Install & use
 

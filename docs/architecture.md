@@ -5,7 +5,7 @@ pipeline, no plugins or config files.
 
 ## Overview
 
-```
+```text
 source A ─┐
           ├─> parse to {key: value} ─> diff ─> mask secrets ─> render ─> exit code
 source B ─┘
@@ -37,14 +37,14 @@ masking callable it is handed, so a raw secret reaches stdout only under
 
 ## Exit codes
 
-| Code | Meaning |
-|---|---|
-| 0 | success |
-| 1 | the environments differ and `--fail-on-diff` was given |
-| 2 | usage error from the argument parser |
-| 65 | an `--ignore` value is not a valid regex |
-| 66 | a source file or command could not be found |
-| 69 | a source command ran and failed |
+| Code | Meaning                                                |
+| ---- | ------------------------------------------------------ |
+| 0    | success                                                |
+| 1    | the environments differ and `--fail-on-diff` was given |
+| 2    | usage error from the argument parser                   |
+| 65   | an `--ignore` value is not a valid regex               |
+| 66   | a source file or command could not be found            |
+| 69   | a source command ran and failed                        |
 
 A CI gate can therefore tell drift (1) from a broken invocation (everything else).
 
