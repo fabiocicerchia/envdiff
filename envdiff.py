@@ -101,7 +101,7 @@ def mask(key: str, value: str, no_mask: bool = False) -> str:
 
 def parse_env_text(text: str) -> Env:
     """Parse KEY=VALUE lines (dotenv / `env` output) into a dict."""
-    env = {}
+    env: Env = {}
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
