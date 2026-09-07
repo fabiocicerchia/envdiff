@@ -35,10 +35,32 @@ envdiff = "envdiff:main"
 py-modules = ["envdiff"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 
 [tool.pytest.ini_options]
 # Import envdiff.py from the checkout. Without this, tests/ is the only path
 # pytest prepends and `import envdiff` resolves to whatever is installed in
 # site-packages — the suite then passes against code that is not in the tree.
 pythonpath = ["."]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "N", "UP", "ANN", "ASYNC", "S", "B", "A", "C4", "DTZ",
+  "T20", "PT", "RET", "SIM", "PTH", "ERA", "TD", "FIX", "PLR2004", "TRY", "PL", "RUF",
+]
+ignore = [
+  "ANN401",      # Any in *args/**kwargs — FC-GEN-016's comment rule covers it
+  "TRY003",      # long messages inline; FC-GEN-022 wants them descriptive
+]
+
+[tool.ruff.lint.flake8-annotations]
+mypy-init-return = true
+
+[tool.ruff.lint.per-file-ignores]
+# `assert` is what a test is, and an expected value is the literal it compares
+# against -- naming it moves the assertion one step from the thing asserted.
+"tests/**" = [
+  "S101",     # `assert` is what a test is
+  "PLR2004",  # an expected value is the literal it compares against
+  "ANN001",   # a fixture or a fake's argument, named by the test that builds it
+]
