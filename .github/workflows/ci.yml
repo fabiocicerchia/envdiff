@@ -20,10 +20,16 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install ruff
+      - name: Install the dev tools
         run: pip install --require-hashes -r requirements-dev.txt
       - name: Ruff
         run: ruff check .
+      # FC-PY-003. Runs here rather than in pre-commit because a type checker
+      # with no dependencies installed reports every import as unresolved and
+      # every value that came through one as unknown -- noise that says nothing
+      # about this code.
+      - name: Basedpyright
+        run: basedpyright
 
   test:
     runs-on: ubuntu-latest
