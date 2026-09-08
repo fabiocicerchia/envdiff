@@ -111,6 +111,24 @@ def parse_env_text(text: str) -> Env:
     return env
 
 
+def read_source_text(path: Path) -> str:
+    """A dotenv file as text, with undecodable bytes replaced rather than fatal.
+
+    A file written on Windows, or carrying one latin-1 value, is not valid
+    UTF-8 — and refusing to diff an environment because one value has a stray
+    byte in it helps nobody. The bytes that could not be decoded become U+FFFD
+    and are called out on stderr, so a key that reads oddly in the diff has an
+    explanation next to it.
+    """
+    text = path.read_text(errors="replace")
+    if "�" in text:
+        print(  # noqa: T201 — the tool's error output
+            f"envdiff: warning: {path}: bytes that are not valid UTF-8 were replaced with �",
+            file=sys.stderr,
+        )
+    return text
+
+
 def capture(argv: list[str]) -> str:
     """Run argv with no shell and return its stdout; raise if it exits non-zero.
 
@@ -119,7 +137,9 @@ def capture(argv: list[str]) -> str:
     """
     # argv is a list built by the caller, never a string, and no shell is
     # involved -- which is the whole reason every source funnels through here.
-    out = subprocess.run(argv, check=True, capture_output=True, text=True)  # noqa: S603
+    # errors="replace": a value carrying latin-1 or a stray byte is a variable
+    # to report, not a reason to abandon the comparison.
+    out = subprocess.run(argv, check=True, capture_output=True, text=True, errors="replace")  # noqa: S603
     return out.stdout
 
 
@@ -190,7 +210,7 @@ def load(source: str) -> Env:
     for prefix, loader in SOURCE_LOADERS.items():
         if source.startswith(prefix):
             return loader(source[len(prefix) :])
-    return parse_env_text(Path(source).read_text())
+    return parse_env_text(read_source_text(Path(source)))
 
 
 def ignored(key: str, ignore_res: list[re.Pattern[str]]) -> bool:

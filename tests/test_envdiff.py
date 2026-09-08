@@ -126,3 +126,14 @@ def test_cli_markdown_format(tmp_path: Path, capsys: pytest.CaptureFixture[str])
     main([str(left), str(right), "--format", "markdown"])
     out = capsys.readouterr().out
     assert "| ~ | `X` | `1` → `2` |" in out
+
+
+def test_invalid_utf8_is_replaced_not_fatal(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A dotenv written on Windows, or carrying one latin-1 value, still diffs —
+    the undecodable bytes become U+FFFD and are called out on stderr."""
+    bad = tmp_path / "bad.vars"
+    bad.write_bytes(b"A=1\nB=caf\xe9\n\xc3\x28\n")
+    env = load(str(bad))
+    assert env["A"] == "1"
+    assert env["B"].startswith("caf")
+    assert "not valid UTF-8" in capsys.readouterr().err
