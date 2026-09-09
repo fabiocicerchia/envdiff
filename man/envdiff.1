@@ -1,0 +1,64 @@
+.TH ENVDIFF 1 "2026-09" "envdiff" "User Commands"
+.SH NAME
+envdiff \- diff environment variables between two environments, safely
+.SH SYNOPSIS
+.B envdiff
+.I LEFT
+.I RIGHT
+.RI [ options ]
+.SH DESCRIPTION
+Compares two sets of environment variables and reports what is missing,
+extra or different \(em with values masked by default, so the output can go
+into a CI log or a ticket.
+.PP
+Each side is auto-detected:
+.I file.env
+for dotenv or
+.BR env (1)
+output,
+.B \-
+for standard input, and
+.BI cmd: 'ssh\ prod\ env'
+for the output of a command.
+.SH OPTIONS
+.TP
+.B \-\-no\-mask
+Print raw values. Careful in CI logs.
+.TP
+.BI \-\-ignore " REGEX"
+Ignore keys matching this regular expression. Repeatable.
+.TP
+.B \-\-fail\-on\-diff
+Exit 1 when the environments differ.
+.TP
+.BI \-\-format " FORMAT"
+Output format (default text).
+.SH EXIT STATUS
+.TP
+.B 0
+Compared successfully; with
+.B \-\-fail\-on\-diff
+they also matched.
+.TP
+.B 1
+With
+.BR \-\-fail\-on\-diff ,
+they differed.
+.SH EXAMPLES
+.PP
+Two files:
+.PP
+.RS
+.B envdiff staging.env production.env
+.RE
+.PP
+A local file against a remote host:
+.PP
+.RS
+.B envdiff .env cmd:'ssh prod env' \-\-ignore '^AWS_' \-\-fail\-on\-diff
+.RE
+.SH SEE ALSO
+.BR env (1),
+.BR diff (1).
+Project documentation:
+https://github.com/fabiocicerchia/envdiff
