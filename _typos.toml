@@ -6,3 +6,9 @@ extend-ignore-re = [
   "/commit/[0-9a-f]{7,40}",
   "\\[[0-9a-f]{7,40}\\]",
 ]
+
+[default.extend-words]
+# `caf\xe9` is "café" in latin-1 — the undecodable byte the UTF-8 test needs.
+# Writing the accent as a character would make the fixture valid UTF-8 and the
+# test vacuous, so the word has to stay truncated.
+caf = "caf"
