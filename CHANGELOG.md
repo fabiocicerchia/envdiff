@@ -5,6 +5,19 @@ from [Conventional Commits](https://www.conventionalcommits.org/) by
 release-please — don't edit it by hand. The project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/fabiocicerchia/envdiff/compare/v0.2.1...v0.3.0) (2026-09-09)
+
+
+### Features
+
+* **packaging:** ship a man page with the wheel ([#75](https://github.com/fabiocicerchia/envdiff/issues/75)) ([aaec7d0](https://github.com/fabiocicerchia/envdiff/commit/aaec7d0f7f4180a7eed5c5bde1baa8195efd226b))
+
+
+### Bug Fixes
+
+* **ci:** pin the editorconfig-checker binary version ([#59](https://github.com/fabiocicerchia/envdiff/issues/59)) ([3ceed30](https://github.com/fabiocicerchia/envdiff/commit/3ceed30be53683cee7e5fcff8f0bd464ab795be7))
+* survive a dotenv that is not valid UTF-8 ([#74](https://github.com/fabiocicerchia/envdiff/issues/74)) ([3a8e1e4](https://github.com/fabiocicerchia/envdiff/commit/3a8e1e418645c65d3c926aae72689e997d71b694))
+
 ## [0.2.1](https://github.com/fabiocicerchia/envdiff/compare/v0.2.0...v0.2.1) (2026-08-29)
 
 ### Bug Fixes
