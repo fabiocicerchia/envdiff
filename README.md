@@ -1,5 +1,15 @@
 # envdiff
 
+> [!WARNING]
+> **This project is retired and no longer maintained.** If you need a tool for
+> this, have a look at
+> [GBerghoff/envdiff](https://github.com/GBerghoff/envdiff) — a separate
+> project that shares the name and does the same job, written in Go and
+> actively maintained. For linting `.env` files,
+> [dotenv-linter](https://github.com/dotenv-linter/dotenv-linter).
+>
+> Nothing below is maintained any more; it is kept for the record.
+
 [![CI](https://github.com/fabiocicerchia/envdiff/actions/workflows/ci.yml/badge.svg)](https://github.com/fabiocicerchia/envdiff/actions/workflows/ci.yml)
 [![Security](https://github.com/fabiocicerchia/envdiff/actions/workflows/security.yml/badge.svg)](https://github.com/fabiocicerchia/envdiff/actions/workflows/security.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
