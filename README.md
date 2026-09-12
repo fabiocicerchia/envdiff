@@ -26,6 +26,25 @@ values are replaced by a stable 6-char fingerprint plus a length/charset shape
 hint — enough to see *whether* two environments share the same secret, or spot
 a shape change (e.g. a shorter key after rotation), without revealing it.
 
+## Features
+
+- Diffs environment variables **between two live environments**, so "why does
+  it work in staging but not in prod?" is one command.
+- **Secret masking is on by default**: secret-looking keys and high-entropy
+  values are replaced by a stable 6-character fingerprint plus a length and
+  charset hint.
+- That fingerprint still answers the useful questions — whether two
+  environments share the same secret, or whether one changed shape after a
+  rotation — without printing it. Output is safe to paste into a ticket.
+- Reads from seven source kinds: dotenv files, stdin, any command's output,
+  live Kubernetes pods, Docker containers, AWS SSM paths and Secrets Manager
+  secrets.
+- `--ignore` takes a regex, for the `HOSTNAME` / `POD_*` noise every pod
+  carries.
+- `--fail-on-diff` gates CI on drift, with exit 1 reserved for a real diff —
+  65/66/69 mean the run itself broke.
+- `--no-mask` exists for when you really mean it, and is never the default.
+
 ## Sources
 
 | Argument                 | Meaning                                               |
